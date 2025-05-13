@@ -21,12 +21,12 @@ for image, label in tfds.as_numpy(train_ds):
 features = np.stack(features)  # shape: (num_samples, 28, 28)
 labels = np.array(labels)      # shape: (num_samples,)
 
+# Flatten each image to 1D (28*28 = 784)
+features = features.reshape(features.shape[0], -1)  # shape: (num_samples, 784)
+
 # Convert to torch tensors for compatibility with dataset_viewer.py
 features = torch.from_numpy(features)
 labels = torch.from_numpy(labels)
-
-# If you want to flatten images, uncomment the next line
-# features = features.reshape(features.shape[0], -1)
 
 # Save as pickle file compatible with dataset_viewer.py
 with open('fashion_mnist.pkl', 'wb') as f:
