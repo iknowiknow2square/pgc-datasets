@@ -1,4 +1,7 @@
 tensorflow
 tensorflow-datasets
 torch
-pillow
+Pillow>=8.0.0
+imageio>=2.9.0
+screeninfo==0.8.0
+
