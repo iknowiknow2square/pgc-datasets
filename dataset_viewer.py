@@ -186,14 +186,26 @@ class DatasetViewer:
         self.current_idx = 0
         self.colormap_var = tk.StringVar(value="Viridis")
 
-        # Colormap selection dropdown
-        colormap_frame = ttk.Frame(root)
-        colormap_frame.pack(pady=3)
-        ttk.Label(colormap_frame, text="Colormap:").pack(side=tk.LEFT, padx=(5,2))
+        # Top-level frame to hold everything
+        self.top_frame = ttk.Frame(root)
+        self.top_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        root.grid_rowconfigure(0, weight=1)
+        root.grid_columnconfigure(0, weight=1)
+
+        # Colormap selection dropdown (row 0)
+        colormap_frame = ttk.Frame(self.top_frame)
+        colormap_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=3)
+        ttk.Label(colormap_frame, text="Colormap:").grid(row=0, column=0, padx=(5,2))
         self.colormap_dropdown = ttk.Combobox(colormap_frame, textvariable=self.colormap_var, state="readonly", width=10)
         self.colormap_dropdown['values'] = ("Viridis", "Magenta", "Greyscale")
-        self.colormap_dropdown.pack(side=tk.LEFT)
+        self.colormap_dropdown.grid(row=0, column=1)
         self.colormap_dropdown.bind("<<ComboboxSelected>>", lambda e: self.show_current_sample())
+
+        # Main frame (row 1)
+        self.main_frame = ttk.Frame(self.top_frame)
+        self.main_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.top_frame.grid_rowconfigure(1, weight=1)
+        self.top_frame.grid_columnconfigure(0, weight=1)
 
         # --- rest of original __init__ continues below ---
         self.root = root
@@ -1006,7 +1018,8 @@ Max Pixel Value (all samples): {all_max}
         # Reshape and convert to numpy array
         img_array = features.reshape(img_size).numpy()
         # Normalize for colormap (float in 0-1)
-        arr_norm = (img_array - img_array.min()) / (img_array.ptp() if img_array.ptp() > 0 else 1)
+        ptp = np.ptp(img_array)
+        arr_norm = (img_array - img_array.min()) / (ptp if ptp > 0 else 1)
         # Select colormap
         cmap_name = self.colormap_var.get()
         if cmap_name == "Viridis":
