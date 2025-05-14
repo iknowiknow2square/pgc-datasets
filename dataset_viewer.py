@@ -192,16 +192,14 @@ class DatasetViewer:
         root.grid_rowconfigure(0, weight=1)
         root.grid_columnconfigure(0, weight=1)
 
-        # Colormap selection dropdown (row 0)
-        colormap_frame = ttk.Frame(self.top_frame)
-        colormap_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=3)
-        ttk.Label(colormap_frame, text="Colormap:").grid(row=0, column=0, padx=(5,2))
-        self.colormap_dropdown = ttk.Combobox(colormap_frame, textvariable=self.colormap_var, state="readonly", width=10)
-        self.colormap_dropdown['values'] = ("Viridis", "Magenta", "Greyscale")
-        self.colormap_dropdown.grid(row=0, column=1)
-        self.colormap_dropdown.bind("<<ComboboxSelected>>", lambda e: self.show_current_sample())
+        # Image canvas (top, centered)
+        self.canvas = tk.Canvas(self.top_frame, width=280, height=280, bg="white", highlightthickness=0)
+        self.canvas.grid(row=0, column=0, pady=8)
 
-        # Main frame (row 1)
+        # Add View menu for colormap selection
+        self.create_menu_bar_with_view()
+
+        # Main frame (rest of UI)
         self.main_frame = ttk.Frame(self.top_frame)
         self.main_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.top_frame.grid_rowconfigure(1, weight=1)
@@ -241,7 +239,7 @@ class DatasetViewer:
         self.main_frame.columnconfigure(0, weight=1)
         
         # Create menu bar
-        self.create_menu_bar()
+
         
         # Image display
         self.canvas = tk.Canvas(self.main_frame, width=280, height=280, bg='white')
@@ -357,6 +355,49 @@ class DatasetViewer:
         root.bind('<Right>', lambda e: self.next_sample())
         root.bind('<Return>', lambda e: self.go_to_index())
     
+    def create_menu_bar_with_view(self):
+        # Create menu bar
+        menu_bar = tk.Menu(self.root)
+        self.root.config(menu=menu_bar)
+        
+        # Add file menu
+        file_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Open Different Dataset", command=self.open_different_dataset)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+        
+        # Add View menu for colormap selection
+        view_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="View", menu=view_menu)
+        view_menu.add_command(label="Viridis", command=lambda: self.set_colormap_and_update('Viridis'))
+        view_menu.add_command(label="Magenta", command=lambda: self.set_colormap_and_update('Magenta'))
+        view_menu.add_command(label="Greyscale", command=lambda: self.set_colormap_and_update('Greyscale'))
+
+        # Create Dataset menu
+        dataset_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="Dataset", menu=dataset_menu)
+        
+        # Add shape configuration submenu
+        shape_menu = tk.Menu(dataset_menu, tearoff=0)
+        dataset_menu.add_cascade(label="Shape", menu=shape_menu)
+        shape_menu.add_command(label="Auto Shape", command=lambda: self.set_shape("auto"))
+        shape_menu.add_separator()
+        shape_menu.add_command(label="Custom Shape...", command=self.set_custom_shape)
+        dataset_menu.add_command(label="Dataset Info", command=self.show_dataset_info)
+
+        # Add Help menu with ASCII Reference
+        help_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="ASCII Reference", command=self.show_ascii_reference)
+        help_menu.add_command(label="DOS Charset (CP437)", command=self.show_dos_cp437)
+        help_menu.add_separator()
+        help_menu.add_command(label="About", command=self.show_about_dialog)
+
+    def set_colormap_and_update(self, cmap_name):
+        self.colormap_var.set(cmap_name)
+        self.show_current_sample()
+    
     def create_menu_bar(self):
         # Create menu bar
         menu_bar = tk.Menu(self.root)
@@ -368,23 +409,17 @@ class DatasetViewer:
         file_menu.add_command(label="Open Different Dataset", command=self.open_different_dataset)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
+        
         # Create Dataset menu
         dataset_menu = tk.Menu(menu_bar, tearoff=0)
         menu_bar.add_cascade(label="Dataset", menu=dataset_menu)
         
         # Add shape configuration submenu
         shape_menu = tk.Menu(dataset_menu, tearoff=0)
-        dataset_menu.add_cascade(label="Configure Shape", menu=shape_menu)
-        
-        # Add common shape options
-        shape_menu.add_command(label="Auto Detect (Default)", command=lambda: self.set_shape("auto"))
-        shape_menu.add_command(label="MNIST (28x28)", command=lambda: self.set_shape((28, 28)))
-        shape_menu.add_command(label="8x16 (128 features)", command=lambda: self.set_shape((8, 16)))
-        shape_menu.add_command(label="16x8 (128 features)", command=lambda: self.set_shape((16, 8)))
-        shape_menu.add_command(label="11x11+7 (128 features)", command=lambda: self.set_shape((11, 12)))  # 11x11=121, +7 more = 128
+        dataset_menu.add_cascade(label="Shape", menu=shape_menu)
+        shape_menu.add_command(label="Auto Shape", command=lambda: self.set_shape("auto"))
         shape_menu.add_separator()
         shape_menu.add_command(label="Custom Shape...", command=self.set_custom_shape)
-        
         dataset_menu.add_command(label="Dataset Info", command=self.show_dataset_info)
 
         # Add Help menu with ASCII Reference
@@ -1147,11 +1182,37 @@ Max Pixel Value (all samples): {all_max}
         except Exception as e:
             feature_text = f"Error converting to ASCII: {str(e)}"
         
-        # Update features text display
+        # Update features text display: show all bytes as characters, non-printable as · (dot), highlight in yellow
         self.features_text.config(state=tk.NORMAL)
         self.features_text.delete(1.0, tk.END)
-        self.features_text.insert(tk.END, feature_text)
+        feature_bytes = None
+        try:
+            if feature_values.max() <= 1.0:
+                arr = (feature_values * 255).astype(np.uint8)
+            else:
+                arr = feature_values.astype(np.uint8)
+            feature_bytes = arr.tolist()
+        except Exception:
+            feature_bytes = []
+        display_chars = []
+        nonprintable_indices = []
+        for idx, b in enumerate(feature_bytes):
+            if 32 <= b < 127:
+                display_chars.append(chr(b))
+            else:
+                display_chars.append('·')
+                nonprintable_indices.append(idx)
+        display_str = ''.join(display_chars)
+        self.features_text.insert(tk.END, display_str)
+        # Highlight non-printable characters in yellow
+        self.features_text.tag_delete('nonprintable')
+        self.features_text.tag_configure('nonprintable', background='yellow')
+        for idx in nonprintable_indices:
+            start = f"1.{idx}"
+            end = f"1.{idx+1}"
+            self.features_text.tag_add('nonprintable', start, end)
         self.features_text.config(state=tk.DISABLED)
+
 
         # --- Update hex viewer ---
         # Try to get raw bytes from features
