@@ -5,7 +5,7 @@ import torch
 
 # Load Fashion MNIST dataset
 (train_ds, test_ds), ds_info = tfds.load(
-    'fashion_mnist',
+    'mnist',
     split=['train', 'test'],
     as_supervised=True,
     with_info=True
@@ -32,7 +32,7 @@ features = torch.from_numpy(features)
 labels = torch.from_numpy(labels)
 
 # Save as pickle file compatible with dataset_viewer.py
-with open('mnist-fashion.pkl', 'wb') as f:
+with open('mnist-classic.pkl', 'wb') as f:
     pickle.dump({'features': features, 'labels': labels}, f)
 
-print('Saved mnist-fashion.pkl with', features.shape[0], 'samples.')
+print('Saved mnist-classic.pkl with', features.shape[0], 'samples.')

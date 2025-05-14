@@ -175,6 +175,27 @@ class DatasetSelector:
 
 class DatasetViewer:
     def __init__(self, root, features, labels, dataset_path):
+        import matplotlib
+        import matplotlib.pyplot as plt
+        from matplotlib import cm
+        
+        self.root = root
+        self.features = features
+        self.labels = labels
+        self.dataset_path = dataset_path
+        self.current_idx = 0
+        self.colormap_var = tk.StringVar(value="Viridis")
+
+        # Colormap selection dropdown
+        colormap_frame = ttk.Frame(root)
+        colormap_frame.pack(pady=3)
+        ttk.Label(colormap_frame, text="Colormap:").pack(side=tk.LEFT, padx=(5,2))
+        self.colormap_dropdown = ttk.Combobox(colormap_frame, textvariable=self.colormap_var, state="readonly", width=10)
+        self.colormap_dropdown['values'] = ("Viridis", "Magenta", "Greyscale")
+        self.colormap_dropdown.pack(side=tk.LEFT)
+        self.colormap_dropdown.bind("<<ComboboxSelected>>", lambda e: self.show_current_sample())
+
+        # --- rest of original __init__ continues below ---
         self.root = root
         self.features = features
         self.labels = labels
@@ -950,14 +971,14 @@ Max Pixel Value (all samples): {all_max}
                             name = unicodedata.name(chr(code))
                         except Exception:
                             name = 'CONTROL'
-            text.insert(tk.END, f"{dec}  {hex_:>4}  {char:^7}  {name}\n")
-        text.config(state=tk.DISABLED)
-        ttk.Button(frame, text="Close", command=dialog.destroy).pack(pady=10)
-
     def create_image(self, features):
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from PIL import Image, ImageTk
+        from matplotlib import cm
+
         # Get the size of the features
         feature_size = features.numel()
-        
         # Determine the appropriate dimensions for visualization
         if self.auto_detect_shape:
             if feature_size == 784:  # MNIST (28x28)
@@ -984,16 +1005,22 @@ Max Pixel Value (all samples): {all_max}
         
         # Reshape and convert to numpy array
         img_array = features.reshape(img_size).numpy()
-        
-        # Scale to 0-255 for display
-        img_array = (img_array * 255).astype(np.uint8)
-        
+        # Normalize for colormap (float in 0-1)
+        arr_norm = (img_array - img_array.min()) / (img_array.ptp() if img_array.ptp() > 0 else 1)
+        # Select colormap
+        cmap_name = self.colormap_var.get()
+        if cmap_name == "Viridis":
+            cmap = cm.viridis
+        elif cmap_name == "Magenta":
+            from matplotlib.colors import LinearSegmentedColormap
+            cmap = LinearSegmentedColormap.from_list("magenta", ["black", "magenta", "white"])
+        else:  # Greyscale
+            cmap = cm.gray
+        arr_rgb = (cmap(arr_norm)[..., :3] * 255).astype(np.uint8)  # RGB
         # Scale up the image for better visibility (maintain aspect ratio)
         scale_factor = 280 / max(img_size)
         scaled_size = (int(img_size[1] * scale_factor), int(img_size[0] * scale_factor))
-        
-        # Create and return the image
-        img = Image.fromarray(img_array).resize(scaled_size, Image.Resampling.NEAREST)
+        img = Image.fromarray(arr_rgb).resize(scaled_size, Image.Resampling.NEAREST)
         return ImageTk.PhotoImage(img)
     
     def show_current_sample(self):
