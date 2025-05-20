@@ -544,6 +544,18 @@ class DatasetViewer:
             except Exception:
                 file_size_str = "File size: (unknown)"
 
+            # Compute min and max label values
+            try:
+                if isinstance(self.labels, torch.Tensor):
+                    label_min = int(self.labels.min().item())
+                    label_max = int(self.labels.max().item())
+                else:
+                    label_min = int(np.min(self.labels))
+                    label_max = int(np.max(self.labels))
+            except Exception:
+                label_min = 'Error'
+                label_max = 'Error'
+
             info_text = f"""
 {file_size_str}
 Dataset Path: {self.dataset_path}
@@ -552,6 +564,8 @@ Feature Size: {self.features[0].numel()}
 Current Shape: {self.feature_shape if not self.auto_detect_shape else 'Auto-detected'}
 Min Pixel Value (all samples): {all_min}
 Max Pixel Value (all samples): {all_max}
+Min Label Value: {label_min}
+Max Label Value: {label_max}
 """
 
             # Create histogram
@@ -1089,16 +1103,13 @@ Max Pixel Value (all samples): {all_max}
         
         # Update label display
         if label > 255:
-            label_str = f"Label: {label:04X} ({label >> 8:02X} {label & 0xFF:02X})"
+            label_str = f"Label: {label} (Hex: {label:04X}, Split: {label >> 8:02X} {label & 0xFF:02X})"
         else:
-            if 32 <= label < 127:
-                char_display = chr(label)
-            else:
-                char_display = '.'
-            label_str = f"ASCII: {label} ('{char_display}')"
+            label_str = f"Label: {label} (Hex: {label:02X})"
         self.label_text.config(state=tk.NORMAL)
         self.label_text.delete(1.0, tk.END)
         self.label_text.insert(tk.END, label_str)
+
         # Highlight the displayed char (or dot) in yellow
         if label <= 255:
             idx = label_str.find(f"'{char_display}'")
@@ -1128,7 +1139,7 @@ Max Pixel Value (all samples): {all_max}
                 return chr(c) if 32 <= c <= 126 else '.'
             char_disp1 = ascii_disp(char1)
             char_disp2 = ascii_disp(char2)
-            label_str = f"Label: {label:04X} ('{char_disp1}{char_disp2}') ({char1:02X} {char2:02X})"
+            label_str = f"Label: {label} (Hex: {label:04X}, Split: {char1:02X} {char2:02X})"
             self.label_text.config(state=tk.NORMAL)
             self.label_text.delete(1.0, tk.END)
             self.label_text.insert(tk.END, label_str)
