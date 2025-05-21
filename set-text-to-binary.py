@@ -83,14 +83,35 @@ def process_text_file(file_path, chunk_type):
                     features.append(window)
                     labels.append(label)
         return features, labels
+    elif chunk_type == 'trigram':
+        binary_data = []
+        for b in data:
+            binary_data.extend([int(bit) for bit in format(b, '08b')])
+        # Window slides by 1 byte (8 bits)
+        if len(binary_data) >= window_size + 24:
+            total_windows = len(binary_data) - window_size - 8 + 1  # slide by 8 bits
+            print("\nCreating sliding windows...")
+            for i in tqdm(range(0, total_windows, 8), desc="Creating samples"):
+                window_start = i
+                window = binary_data[window_start:window_start + window_size]
+                next_byte_pos = (window_start + window_size) // 8
+                # Prepare label as the next trigram (pad with 0 if needed)
+                if next_byte_pos < len(data):
+                    b1 = data[next_byte_pos]
+                    b2 = data[next_byte_pos+1] if (next_byte_pos+1) < len(data) else 0
+                    b3 = data[next_byte_pos+2] if (next_byte_pos+2) < len(data) else 0
+                    label = ((b1 & 0xFF) << 16) | ((b2 & 0xFF) << 8) | (b3 & 0xFF)
+                    features.append(window)
+                    labels.append(label)
+        return features, labels
     else:
-        raise ValueError("chunk_type must be 'unigram' or 'bigram'")
+        raise ValueError("chunk_type must be 'unigram', 'bigram', or 'trigram'")
 
 def main():
     parser = argparse.ArgumentParser(description="Convert text file to binary dataset with sliding window.")
     parser.add_argument('input_file', help='Input text file')
     parser.add_argument('output_file', help='Output dataset file')
-    parser.add_argument('--chunk', required=True, choices=['unigram', 'bigram'], help="Chunking method: 'unigram' (single char) or 'bigram' (pairs, pad with ASCII 0 if needed)")
+    parser.add_argument('--chunk', required=True, choices=['unigram', 'bigram', 'trigram'], help="Chunking method: 'unigram' (single char), 'bigram' (pairs), or 'trigram' (triplets, pad with ASCII 0 if needed)")
     args = parser.parse_args()
 
     # Process the text file
