@@ -34,52 +34,52 @@ def process_text_file(file_path, chunk_type):
     """Process text file and convert to binary sequences with sliding windows.
     chunk_type: 'unigram' or 'bigram'
     """
-    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-        text = f.read()
+    with open(file_path, 'rb') as f:
+        data = f.read()
 
     features = []
     labels = []
     window_size = 784  # Same as MNIST
 
     if chunk_type == 'unigram':
-        # Process as single characters
+        # Process as single bytes
         binary_data = []
-        ascii_chars = []
-        print("Converting characters to binary (unigram mode)...")
-        for char in tqdm(text, desc="Processing characters"):
-            binary_data.extend(char_to_binary(char))
-            ascii_chars.append(char)
-        # Window slides by 1 character (8 bits)
+        byte_list = []
+        print("Converting bytes to binary (unigram mode)...")
+        for b in tqdm(data, desc="Processing bytes"):
+            binary_data.extend([int(bit) for bit in format(b, '08b')])
+            byte_list.append(b)
+        # Window slides by 1 byte (8 bits)
         if len(binary_data) >= window_size + 8:
             total_windows = len(binary_data) - window_size - 8 + 1
             print("\nCreating sliding windows...")
             for i in tqdm(range(0, total_windows, 8), desc="Creating samples"):
                 window_start = i
                 window = binary_data[window_start:window_start + window_size]
-                next_char_pos = (window_start + window_size) // 8
-                if next_char_pos < len(ascii_chars):
+                next_byte_pos = (window_start + window_size) // 8
+                if next_byte_pos < len(byte_list):
                     features.append(window)
-                    labels.append(ord(ascii_chars[next_char_pos]) & 127)
+                    labels.append(byte_list[next_byte_pos] & 127)
         return features, labels
 
     elif chunk_type == 'bigram':
-        # Prepare binary data for all characters
+        # Prepare binary data for all bytes
         binary_data = []
-        for char in text:
-            binary_data.extend(char_to_binary(char))
-        # Window slides by 1 character (8 bits)
+        for b in data:
+            binary_data.extend([int(bit) for bit in format(b, '08b')])
+        # Window slides by 1 byte (8 bits)
         if len(binary_data) >= window_size + 16:
             total_windows = len(binary_data) - window_size - 8 + 1  # slide by 8 bits
             print("\nCreating sliding windows...")
             for i in tqdm(range(0, total_windows, 8), desc="Creating samples"):
                 window_start = i
                 window = binary_data[window_start:window_start + window_size]
-                next_char_pos = (window_start + window_size) // 8
-                # Prepare label as the next bigram (pad with '\x00' if needed)
-                if next_char_pos < len(text):
-                    c1 = text[next_char_pos]
-                    c2 = text[next_char_pos+1] if (next_char_pos+1) < len(text) else '\x00'
-                    label = (ord(c1) << 8) | ord(c2)
+                next_byte_pos = (window_start + window_size) // 8
+                # Prepare label as the next bigram (pad with 0 if needed)
+                if next_byte_pos < len(data):
+                    b1 = data[next_byte_pos]
+                    b2 = data[next_byte_pos+1] if (next_byte_pos+1) < len(data) else 0
+                    label = ((b1 & 0xFF) << 8) | (b2 & 0xFF)
                     features.append(window)
                     labels.append(label)
         return features, labels
