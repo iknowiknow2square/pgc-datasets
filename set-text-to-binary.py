@@ -5,6 +5,9 @@
 # LICENSE: AGPL v3
 
 
+CONTEXT_SIZE = 98  # character context size
+
+
 import os
 import torch
 from torch.utils.data import Dataset
@@ -30,6 +33,18 @@ def char_to_binary(char):
     val = ord(char)
     return [int(b) for b in format(val, '08b')]
 
+def prepend_zeros_to_text(text, context_size=CONTEXT_SIZE):
+    """
+    Prepend the text with as many zero ASCII characters (\x00) as context_size.
+    Args:
+        text (str): The input text.
+        context_size (int): Number of zero bytes to prepend. Defaults to CONTEXT_SIZE.
+    Returns:
+        str: The text with prepended zero bytes.
+    """
+    return ('\x00' * context_size) + text
+
+
 def process_text_file(file_path, chunk_type):
     """Process text file and convert to binary sequences with sliding windows.
     chunk_type: 'unigram' or 'bigram'
@@ -39,7 +54,7 @@ def process_text_file(file_path, chunk_type):
 
     features = []
     labels = []
-    window_size = 784  # Same as MNIST
+    window_size = CONTEXT_SIZE * 8  # Same as MNIST
 
     if chunk_type == 'unigram':
         # Process as single bytes
